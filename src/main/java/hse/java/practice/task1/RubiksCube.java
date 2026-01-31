@@ -25,79 +25,96 @@ public class RubiksCube implements Cube {
         }
     }
 
-    private void applyCycles(int[][] cycles) {
-        for (int[] cycle : cycles) {
-            applyCycle(cycle);
-        }
-    }
-
-    private void applyCycle(int[] cycle) {
-        int first = state[cycle[cycle.length - 1]];
-        for (int i = cycle.length - 1; i > 0; i--) {
-            state[cycle[i]] = state[cycle[i - 1]];
-        }
-        state[cycle[0]] = first;
-    }
-
     @Override
     public void up(RotateDirection direction) {
-        applyCycles(direction == RotateDirection.CLOCKWISE ?
-                RotationPermutations.U_CW : RotationPermutations.U_CCW);
+        rotate(direction, RotationPermutations.U_CW, RotationPermutations.U_CCW);
     }
 
     @Override
     public void down(RotateDirection direction) {
-        applyCycles(direction == RotateDirection.CLOCKWISE ?
-                RotationPermutations.D_CW : RotationPermutations.D_CCW);
+        rotate(direction, RotationPermutations.D_CW, RotationPermutations.D_CCW);
     }
 
     @Override
     public void left(RotateDirection direction) {
-        applyCycles(direction == RotateDirection.CLOCKWISE ?
-                RotationPermutations.L_CW : RotationPermutations.L_CCW);
+        rotate(direction, RotationPermutations.L_CW, RotationPermutations.L_CCW);
     }
 
     @Override
     public void right(RotateDirection direction) {
-        applyCycles(direction == RotateDirection.CLOCKWISE ?
-                RotationPermutations.R_CW : RotationPermutations.R_CCW);
+        rotate(direction, RotationPermutations.R_CW, RotationPermutations.R_CCW);
     }
 
     @Override
     public void front(RotateDirection direction) {
-        applyCycles(direction == RotateDirection.CLOCKWISE ?
-                RotationPermutations.F_CW : RotationPermutations.F_CCW);
+        rotate(direction, RotationPermutations.F_CW, RotationPermutations.F_CCW);
     }
 
     @Override
     public void back(RotateDirection direction) {
-        applyCycles(direction == RotateDirection.CLOCKWISE ?
-                RotationPermutations.B_CW : RotationPermutations.B_CCW);
+        rotate(direction, RotationPermutations.B_CW, RotationPermutations.B_CCW);
+    }
+
+    private void rotate(RotateDirection direction, int[][] clockwiseCycles, int[][] counterClockwiseCycles) {
+        int[][] cycles = direction == RotateDirection.CLOCKWISE ? clockwiseCycles : counterClockwiseCycles;
+        applyCycles(cycles);
+    }
+
+    private void applyCycles(int[][] cycles) {
+        for (int[] cycle : cycles) {
+            rotateCycle(cycle);
+        }
+    }
+
+    private void rotateCycle(int[] cycle) {
+        int lastValue = state[cycle[cycle.length - 1]];
+
+        for (int i = cycle.length - 1; i > 0; i--) {
+            state[cycle[i]] = state[cycle[i - 1]];
+        }
+
+        state[cycle[0]] = lastValue;
     }
 
 
     public Edge[] getEdges() {
         CubeColor[] colors = CubeColor.values();
 
-        for (int i = 0; i < EDGES_COUNT; i++) {
-            CubeColor[][] parts = new CubeColor[3][3];
-            for (int x = 0; x < 3; x++) {
-                for (int y = 0; y < 3; y++) {
-                    int pos = x + y * 3 + 1;
-                    if (pos == 5) {
-                        parts[y][x] = colors[RotationPermutations.fromWikiToHw.get(i)];
-                        continue;
-                    }
-                    if (pos > 5) {
-                        pos--;
-                    }
-                    int colorId = RotationPermutations.fromWikiToHw.get((state[i*8+pos] - 1) / 8);
-                    parts[y][x] = colors[colorId];
-                }
-            }
-            edges[RotationPermutations.fromWikiToHw.get(i)].setParts(parts);
+        for (int edgeIndex = 0; edgeIndex < EDGES_COUNT; edgeIndex++) {
+            CubeColor[][] edgeParts = new CubeColor[3][3];
+            fillEdgeParts(edgeIndex, edgeParts, colors);
+
+            int hardwareEdgeIndex = RotationPermutations.fromWikiToHw.get(edgeIndex);
+            edges[hardwareEdgeIndex].setParts(edgeParts);
         }
+
         return edges;
+    }
+
+    private void fillEdgeParts(int edgeIndex, CubeColor[][] edgeParts, CubeColor[] colors) {
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 3; col++) {
+                int position = col + row * 3 + 1;
+                CubeColor color = determineColor(edgeIndex, position, colors);
+                edgeParts[row][col] = color;
+            }
+        }
+    }
+
+
+    private CubeColor determineColor(int edgeIndex, int position, CubeColor[] colors) {
+        if (position == 5) {
+            int colorId = RotationPermutations.fromWikiToHw.get(edgeIndex);
+            return colors[colorId];
+        } else if (position > 5) {
+            position--;
+        }
+
+        int stateIndex = edgeIndex * 8 + position;
+        int mappedColorId = (state[stateIndex] - 1) / 8;
+        int hardwareColorId = RotationPermutations.fromWikiToHw.get(mappedColorId);
+
+        return colors[hardwareColorId];
     }
 
     @Override
